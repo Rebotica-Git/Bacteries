@@ -28,4 +28,13 @@ while True:
         except:
             pass
 
+    # Отправляем статус игрового поля
+    for sock in players:
+        try:
+            sock.send("Игра".encode())
+        except:
+            players.remove(sock)
+            sock.close()
+            print("Сокет закрыт")
+
     time.sleep(1)

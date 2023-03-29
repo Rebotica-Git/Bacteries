@@ -112,7 +112,6 @@ while run:
 
     # Получаем
     data = sock.recv(1024).decode()
-    # print(data)
     data = find(data).split(",")  # Разбиваем на шары
 
     # Рисуем новое поле

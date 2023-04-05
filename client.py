@@ -1,5 +1,6 @@
 import math
 import socket
+import time
 import pygame
 import tkinter as tk
 from tkinter import ttk
@@ -7,6 +8,7 @@ import tkinter.messagebox
 
 name = ""
 color = ""
+buffer = 1024
 
 
 def login():
@@ -69,6 +71,7 @@ pygame.display.set_caption("Бактерии")
 
 
 def find(vector: str):
+    global buffer
     first = None
     for num, sign in enumerate(vector):
         if sign == "<":
@@ -77,7 +80,16 @@ def find(vector: str):
             second = num
             result = vector[first + 1:second]  # Поменяли
             return result
+    if buffer < 10000000:
+        buffer = int(buffer * 1.5)
     return ""
+
+
+def draw_text(x, y, r, text, color):
+    font = pygame.font.Font(None, r)
+    text = font.render(text, True, color)
+    rect = text.get_rect(center=(x, y))
+    screen.blit(text, rect)
 
 
 def draw_bacteries(data: list[str]):
@@ -88,6 +100,40 @@ def draw_bacteries(data: list[str]):
         size = int(data[2])
         color = data[3]
         pygame.draw.circle(screen, color, (x, y), size)
+        if len(data) > 4:
+            draw_text(x, y, size // 2, data[4], "black")
+
+
+class Grid:
+    def __init__(self, screen, color):
+        self.screen = screen
+        self.x = 0
+        self.y = 0
+        self.start_size = 200
+        self.size = self.start_size
+        self.color = color
+
+    def update(self, parameters: list[int]):
+        x, y, L = parameters
+        self.size = self.start_size // L
+        self.x = -self.size + (-x) % self.size
+        self.y = -self.size + (-y) % self.size
+
+    def draw(self):
+        for i in range(WIDTH // self.size + 2):
+            pygame.draw.line(self.screen, self.color,
+                             (self.x + i * self.size, 0),  # Координаты начала линии
+                             (self.x + i * self.size, HEIGHT),  # Координаты конца линии
+                             1)
+        for i in range(HEIGHT // self.size + 2):
+            pygame.draw.line(self.screen, self.color,
+                             (0, self.y + i * self.size),  # Координаты начала линии
+                             (WIDTH, self.y + i * self.size),  # Координаты конца линии
+                             1)
+
+
+
+grid = Grid(screen, "seashell4")
 
 
 run = True
@@ -108,19 +154,31 @@ while run:
             if vector != old:
                 old = vector
                 msg = f"<{vector[0]},{vector[1]}>"
-                sock.send(msg.encode())
+                try:
+                    sock.send(msg.encode())
+                except:
+                    run = False
+                    continue
 
     # Получаем
-    data = sock.recv(1024).decode()
+    data = sock.recv(buffer).decode()
     data = find(data).split(",")  # Разбиваем на шары
 
     # Рисуем новое поле
-    screen.fill('gray')
+    screen.fill('gray25')
     if data != ['']:
-        radius = int(data[0])  # Сохраняем размер из сообщения в переменную
-        draw_bacteries(data[1:])  # Срезаем размер, чтобы он не попадал в ф-ию рисования соседейй
+        parameters = list(map(int, data[0].split(" ")))
+        radius = parameters[0]  # Сохраняем размер из сообщения в переменную
+        grid.update(parameters[1:])
+        grid.draw()
+        draw_bacteries(data[1:])  # Срезаем размер, чтобы он не попадал в ф-ию рисования соседей
     pygame.draw.circle(screen, color, CC, radius)
+    draw_text(CC[0], CC[1], radius // 2, name, "black")
 
     pygame.display.update()
 
+screen.fill('gray25')
+draw_text(CC[0], CC[1], 100, "Спасибо за игру!", "white")
+pygame.display.update()
+time.sleep(2)
 pygame.quit()
